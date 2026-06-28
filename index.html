@@ -135,7 +135,7 @@ td input[type="checkbox"], th input[type="checkbox"] { width: 18px; height: 18px
   </div>
   <div class="course-switch">
     <button data-course="垒球" class="active" onclick="switchCourse('垒球')">⚾ 垒球</button>
-    <button data-course="户外运动" onclick="switchCourse('户外运动')">🏔 户外运动</button>
+    <button data-course="户外运动" onclick="switchCourse('户外运动')">🥏 户外运动</button>
     <button data-course="" onclick="switchCourse('')">📋 全部</button>
   </div>
 </header>
@@ -163,7 +163,7 @@ td input[type="checkbox"], th input[type="checkbox"] { width: 18px; height: 18px
         <input id="importGroup" placeholder="如: 周一1-2、周三3-4（可选）">
       </div>
       <div style="flex:1"><label>📂 课程类型</label>
-        <select id="importCourse"><option value="">-- 请选择 --</option><option value="垒球">⚾ 垒球</option><option value="户外运动">🏔 户外运动</option></select>
+        <select id="importCourse"><option value="">-- 请选择 --</option><option value="垒球">⚾ 垒球</option><option value="户外运动">🥏 户外运动</option></select>
       </div>
     </div>
     <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
@@ -500,7 +500,7 @@ function scoreCount(value, table) {
 // ========== COURSE CONFIG ==========
 function getCourseConfig(course) {
   if (course === '垒球') return { icon: '⚾', name: '垒球', sport1Label: '专项一', sport1Max: 20, sport2Label: '专项二', sport2Max: 20 };
-  return { icon: '🏔', name: '户外运动', sport1Label: '专项一', sport1Max: 30, sport2Label: '专项二', sport2Max: 10 };
+  return { icon: '🥏', name: '户外运动', sport1Label: '专项一', sport1Max: 30, sport2Label: '专项二', sport2Max: 10 };
 }
 
 function updateSportLabels() {
