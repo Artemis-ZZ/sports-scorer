@@ -599,6 +599,13 @@ function clearAll() {
   if (!confirm('确定清空全部学生和成绩数据？此操作不可恢复！')) return;
   DB.students = []; saveDB(); renderStudents(); updateCount();
 }
+function editGroup(sid) {
+  const s = getStudent(sid); if (!s) return;
+  const newGroup = prompt('修改课程时间（如: 周一1-2）：', s.group || '');
+  if (newGroup === null) return; // cancelled
+  s.group = newGroup.trim();
+  saveDB(); renderStudents(); updateCount();
+}
 function toggleExempt(sid) {
   const s = getStudent(sid); if (!s) return;
   s.exempt = !s.exempt; saveDB(); renderStudents();
@@ -633,7 +640,7 @@ function renderStudents() {
       const isExempt = s.exempt === true;
       return `<tr ${isExempt?'style="color:var(--text2);text-decoration:line-through"':''}>
         <td><input type="checkbox" class="student-cb" value="${s.id}" onclick="updateBatchBtn()"></td>
-        <td>${esc(s.course||'')}</td><td>${esc(s.group||'')}</td><td>${esc(s.class)}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
+        <td>${esc(s.course||'')}</td><td style="cursor:pointer" onclick="editGroup('${s.id}')" title="点击修改课程时间">${esc(s.group||'')||'<span style="color:var(--text2)">点击设置</span>'}</td><td>${esc(s.class)}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
         <td>${s.gender}</td>
         <td><span class="tag ${isExempt?'tag-info':'tag-warn'}" onclick="toggleExempt('${s.id}')" style="cursor:pointer">${isExempt?'免修':'正常'}</span></td>
         <td><button class="btn btn-danger btn-sm" onclick="removeStudent('${s.id}')">删除</button></td>
