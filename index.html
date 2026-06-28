@@ -742,7 +742,7 @@ function loadGroupAttendance() {
   const group = $('attGroup').value, date = $('attGroupDate').value;
   const container = $('groupAttContent');
   if (!group || !date) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">请选择课程时间和日期</div>'; return; }
-  const students = DB.students.filter(s => (s.group || '').trim() === group);
+  const students = DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group);
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   const ATT_SYMBOL = { '出勤': '✓', '旷课': '○', '病假': '◎', '事假': '⊕', '公假': '√', '见习': '△' };
   const attTypes = ['旷课','病假','事假','公假','见习'];
@@ -855,7 +855,7 @@ function loadGroupFitness() {
   const group = $('fitGroup').value, item = $('fitItem').value;
   const container = $('groupFitContent');
   if (!group || !item) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">请选择课程时间和测试项目</div>'; return; }
-  const students = DB.students.filter(s => (s.group || '').trim() === group);
+  const students = DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group);
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   const isFemaleOnly = item === 'f_800m' || item === 'f_situp';
   const isMaleOnly = item === 'f_1000m' || item === 'f_pullup';
@@ -903,7 +903,7 @@ function loadGroupSport() {
   const group = $('sportGroup').value;
   const container = $('groupSportContent');
   if (!group) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">请选择课程时间</div>'; return; }
-  const students = DB.students.filter(s => (s.group || '').trim() === group);
+  const students = DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group);
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   // Detect course from first student
   const firstCourse = students[0].course;
@@ -954,7 +954,7 @@ function loadGroupComp() {
   const group = $('compGroup').value;
   const container = $('groupCompContent');
   if (!group) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">请选择课程时间</div>'; return; }
-  const students = DB.students.filter(s => (s.group || '').trim() === group);
+  const students = DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group);
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   let html = `<div style="overflow-x:auto"><table>
     <thead><tr><th>姓名</th><th>学号</th><th>竞赛一<br>(0-5)</th><th>竞赛二<br>(0-5)</th><th>校级赛事<br>(0-10)</th><th>赛事总分<br>(上限10)</th></tr></thead><tbody>`;
@@ -1006,7 +1006,7 @@ function loadGroupSunny() {
   const group = $('sunnyGroup').value;
   const container = $('groupSunnyContent');
   if (!group) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">请选择课程时间</div>'; return; }
-  const students = DB.students.filter(s => (s.group || '').trim() === group);
+  const students = DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group);
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   let html = `<div style="overflow-x:auto"><table><thead><tr><th>姓名</th><th>学号</th><th>性别</th><th>分数（0-10）</th><th>备注</th></tr></thead><tbody>`;
   for (const s of students) {
@@ -1104,7 +1104,7 @@ function refreshStats() {
 function filterQueryStudents() {
   const group = $('queryGroup').value;
   const sel = $('detailStudent');
-  const list = group ? DB.students.filter(s => (s.group || '').trim() === group) : DB.students;
+  const list = group ? DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group) : DB.students.filter(s => (s.course || '') === DB.currentCourse);
   sel.innerHTML = '<option value="">-- 请选择 --</option>' +
     list.map(s => `<option value="${s.id}">${esc(s.class)} - ${esc(s.name)} (${esc(s.sid)})</option>`).join('');
   $('studentDetailContent').innerHTML = '';
