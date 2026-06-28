@@ -1280,7 +1280,7 @@ function exportExcel() {
     const emptyRow = new Array(41).fill('');
     rows.push(emptyRow); rows.push(emptyRow); rows.push(emptyRow);
     const footer1 = new Array(41).fill(''); footer1[14] = `      班  级 ：   ${className}`; rows.push(footer1);
-    const footer2 = new Array(41).fill(''); footer2[14] = '        任课教师：         张嘉雯         1'; rows.push(footer2);
+    const footer2 = new Array(41).fill(''); footer2[14] = '        任课教师：         孙文杰         1'; rows.push(footer2);
     const footer3 = new Array(41).fill(''); footer3[14] = '        项目名称：    ' + cfg.name + '         1'; rows.push(footer3);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
