@@ -45,7 +45,6 @@ header .course-switch button {
   background: none; color: rgba(255,255,255,.7); font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s;
 }
 header .course-switch button.active { background: #fff; color: var(--primary); border-color: #fff; }
-header .course-switch button:last-child { flex: 1.5; }
 nav {
   display: flex; background: var(--card); border-bottom: 1px solid var(--sep);
   position: sticky; top: 92px; z-index: 99; overflow-x: auto;
@@ -136,7 +135,6 @@ td input[type="checkbox"], th input[type="checkbox"] { width: 18px; height: 18px
   <div class="course-switch">
     <button data-course="垒球" class="active" onclick="switchCourse('垒球')">⚾ 垒球</button>
     <button data-course="户外运动" onclick="switchCourse('户外运动')">🥏 户外运动</button>
-    <button data-course="" onclick="switchCourse('')">📋 全部</button>
   </div>
 </header>
 
