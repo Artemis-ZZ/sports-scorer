@@ -160,9 +160,6 @@ td input[type="checkbox"], th input[type="checkbox"] { width: 18px; height: 18px
       <div style="flex:1"><label>📂 课程时间</label>
         <input id="importGroup" placeholder="如: 周一1-2、周三3-4（可选）">
       </div>
-      <div style="flex:1"><label>📂 课程类型</label>
-        <select id="importCourse"><option value="">-- 请选择 --</option><option value="垒球">⚾ 垒球</option><option value="户外运动">🥏 户外运动</option></select>
-      </div>
     </div>
     <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
       <div class="icon">📂</div>
@@ -545,7 +542,7 @@ function handleFile(e) {
         alert('表头需要包含"班级、姓名、学号"列，当前表头: ' + header.join(', '));
         return;
       }
-      const importCourse = $('importCourse').value;
+      const importCourse = DB.currentCourse;
       let imported = 0;
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
@@ -579,7 +576,7 @@ function addStudent() {
   const cls = $('mClass').value.trim(), name = $('mName').value.trim(), sid = $('mSid').value.trim();
   if (!cls || !name || !sid) { $('addMsg').textContent = '请填写所有字段'; return; }
   if (DB.students.find(s => s.sid === sid)) { $('addMsg').textContent = '学号重复'; return; }
-  const course = $('importCourse').value;
+  const course = DB.currentCourse;
   DB.students.push({
     id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
     class: cls, name, sid, gender: $('mGender').value, course,
