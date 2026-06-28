@@ -692,10 +692,6 @@ function removeAttendance(sid, idx) {
   s.attendance.splice(idx, 1); saveDB();
   renderAttStats(s); renderAttLog(s);
 }
-function toggleSkipAtt(sid) {
-  const s = getStudent(sid); if (!s) return;
-  s.skipAtt = !s.skipAtt; saveDB(); loadGroupAttendance();
-}
 function consecutiveJianxi(s) {
   const att = (s.attendance || []).filter(a => a.type === '见习');
   if (att.length === 0) return 0;
@@ -712,7 +708,6 @@ function consecutiveJianxi(s) {
   return count;
 }
 function calcAttendance(s) {
-  if (s.skipAtt === true) return { score: 10, kuang: 0, bing: 0, shi: 0, gong: 0, jianxi: 0, nonOfficial: 0, disqualified: false };
   const att = s.attendance || [];
   let score = 10, kuang = 0, bing = 0, shi = 0, gong = 0, jianxi = 0;
   for (const a of att) {
@@ -753,9 +748,8 @@ function loadGroupAttendance() {
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   const ATT_SYMBOL = { '出勤': '✓', '旷课': '○', '病假': '◎', '事假': '⊕', '公假': '√', '见习': '△' };
   const attTypes = ['旷课','病假','事假','公假','见习'];
-  let html = `<div style="overflow-x:auto"><table><thead><tr><th>姓名</th><th>学号</th><th>出勤状态</th><th>今日</th><th style="min-width:200px">标记</th></tr></thead><tbody>`;
+  let html = `<div style="overflow-x:auto"><table><thead><tr><th>姓名</th><th>学号</th><th>今日</th><th style="min-width:200px">标记</th></tr></thead><tbody>`;
   for (const s of students) {
-    const skip = s.skipAtt === true;
     const att = (s.attendance || []).filter(a => a.date === date);
     let symbol = att.length > 0 ? (ATT_SYMBOL[att[0].type] || '') : '';
     if (att.length > 0 && att[0].type === '见习') { const cc = consecutiveJianxi(s); if (cc >= 2) symbol = '△(' + cc + ')'; }
@@ -764,11 +758,10 @@ function loadGroupAttendance() {
     else if (symbol.startsWith('△')) clr = 'var(--primary)';
     else if (symbol) clr = 'var(--danger)';
     html += `<tr><td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
-      <td><span class="tag ${skip?'tag-info':'tag-warn'}" onclick="toggleSkipAtt('${s.id}')" style="cursor:pointer;font-size:11px">${skip?'免考勤':'上课'}</span></td>
-      <td style="font-size:20px;font-weight:bold;${skip?'color:#000':clr?'color:'+clr:''}">${skip?'✓':symbol}</td>
-      <td><button class="btn btn-sm btn-outline" onclick="markGroupAtt('${s.id}','${date}','')" style="padding:2px 6px;margin:1px;font-size:12px" ${skip?'disabled':''}>出勤</button>`;
+      <td style="font-size:20px;font-weight:bold;${clr?'color:'+clr:''}">${symbol}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="markGroupAtt('${s.id}','${date}','')" style="padding:2px 6px;margin:1px;font-size:12px">出勤</button>`;
     for (const t of attTypes) {
-      html += `<button class="btn btn-sm btn-outline" onclick="markGroupAtt('${s.id}','${date}','${t}')" style="padding:2px 6px;margin:1px;font-size:12px" ${skip?'disabled':''}>${ATT_SYMBOL[t]}${t}</button>`;
+      html += `<button class="btn btn-sm btn-outline" onclick="markGroupAtt('${s.id}','${date}','${t}')" style="padding:2px 6px;margin:1px;font-size:12px">${ATT_SYMBOL[t]}${t}</button>`;
     }
     html += `</td></tr>`;
   }
@@ -790,7 +783,7 @@ function loadGroupAttendance() {
   container.innerHTML = html;
 }
 function markGroupAtt(sid, date, type) {
-  const s = getStudent(sid); if (!s || s.skipAtt === true) return;
+  const s = getStudent(sid); if (!s) return;
   s.attendance = s.attendance || [];
   s.attendance = s.attendance.filter(a => a.date !== date);
   s.attendance.push({ type: type || '出勤', date, note: '' });
@@ -977,15 +970,15 @@ function loadGroupComp() {
       <td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
       <td><select id="gcomp1_${s.id}" onchange="saveGroupComp('${s.id}','comp1')" style="width:60px;padding:4px;font-size:13px">
         <option value="" ${c1===''?'selected':''}>-</option>
-        ${Array.from({length:6},(_,i)=>`<option value="${i}" ${c1==i?'selected':''}>${i}</option>`).join('')}
+        ${[5].map(v=>`<option value="${v}" ${c1==v?'selected':''}>${v}</option>`).join('')}
       </select></td>
       <td><select id="gcomp2_${s.id}" onchange="saveGroupComp('${s.id}','comp2')" style="width:60px;padding:4px;font-size:13px">
         <option value="" ${c2===''?'selected':''}>-</option>
-        ${Array.from({length:6},(_,i)=>`<option value="${i}" ${c2==i?'selected':''}>${i}</option>`).join('')}
+        ${[5].map(v=>`<option value="${v}" ${c2==v?'selected':''}>${v}</option>`).join('')}
       </select></td>
       <td><select id="gcomps_${s.id}" onchange="saveGroupComp('${s.id}','school')" style="width:60px;padding:4px;font-size:13px">
         <option value="" ${c3===''?'selected':''}>-</option>
-        ${Array.from({length:11},(_,i)=>`<option value="${i}" ${c3==i?'selected':''}>${i}</option>`).join('')}
+        ${[10].map(v=>`<option value="${v}" ${c3==v?'selected':''}>${v}</option>`).join('')}
       </select></td>
       <td style="font-weight:bold;color:var(--primary)" id="gcomp_total_${s.id}">${c1!==''||c2!==''||c3!==''?total+'分':''}</td>
     </tr>`;
