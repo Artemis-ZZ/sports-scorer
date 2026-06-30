@@ -530,41 +530,48 @@ function handleFile(e) {
   reader.onload = function(ev) {
     try {
       const wb = XLSX.read(ev.target.result, { type: 'binary' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      if (rows.length < 2) { alert('Excel 文件为空'); return; }
-      const header = rows[0].map(h => String(h || '').trim());
-      const colClass = header.findIndex(h => h.includes('班级'));
-      const colName = header.findIndex(h => h.includes('姓名'));
-      const colSid = header.findIndex(h => h.includes('学号'));
-      const colGender = header.findIndex(h => h.includes('性别'));
-      if (colClass < 0 || colName < 0 || colSid < 0) {
-        alert('表头需要包含"班级、姓名、学号"列，当前表头: ' + header.join(', '));
-        return;
-      }
+      const manualGroup = $('importGroup').value.trim();
       const importCourse = DB.currentCourse;
-      let imported = 0;
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r || !r[colName]) continue;
-        const sid = String(r[colSid] || '').trim();
-        if (DB.students.find(s => s.sid === sid)) continue;
-        let gender = '男';
-        if (colGender >= 0) { const g = String(r[colGender] || '').trim(); if (g.includes('女')) gender = '女'; }
-        const importGroup = $('importGroup').value.trim();
-        DB.students.push({
-          id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
-          class: String(r[colClass] || '').trim(),
-          name: String(r[colName] || '').trim(), sid, gender,
-          course: importCourse,
-          group: importGroup || '',
-          exempt: false,
-          attendance: [], fitness: {}, sport: {}, comp: { comp1: null, comp2: null, school: null }, sunny: null
-        });
-        imported++;
+      let totalImported = 0;
+      const sheetNames = wb.SheetNames;
+      for (const sheetName of sheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        if (rows.length < 2) continue;
+        const header = rows[0].map(h => String(h || '').trim());
+        const colClass = header.findIndex(h => h.includes('班级'));
+        const colName = header.findIndex(h => h.includes('姓名'));
+        const colSid = header.findIndex(h => h.includes('学号'));
+        const colGender = header.findIndex(h => h.includes('性别'));
+        if (colClass < 0 || colName < 0 || colSid < 0) {
+          alert('Sheet "' + sheetName + '" 表头需要包含"班级、姓名、学号"列，当前表头: ' + header.join(', ') + '\n已跳过该Sheet');
+          continue;
+        }
+        // 课程时间：手动填写优先，否则用Sheet名称
+        const group = manualGroup || sheetName;
+        let imported = 0;
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (!r || !r[colName]) continue;
+          const sid = String(r[colSid] || '').trim();
+          if (DB.students.find(s => s.sid === sid)) continue;
+          let gender = '男';
+          if (colGender >= 0) { const g = String(r[colGender] || '').trim(); if (g.includes('女')) gender = '女'; }
+          DB.students.push({
+            id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
+            class: String(r[colClass] || '').trim(),
+            name: String(r[colName] || '').trim(), sid, gender,
+            course: importCourse,
+            group: group,
+            exempt: false,
+            attendance: [], fitness: {}, sport: {}, comp: { comp1: null, comp2: null, school: null }, sunny: null
+          });
+          imported++;
+        }
+        totalImported += imported;
       }
       saveDB();
-      $('importPreview').innerHTML = `<div class="card" style="background:#E8F8EE"><b>✅ 成功导入 ${imported} 名学生</b></div>`;
+      $('importPreview').innerHTML = `<div class="card" style="background:#E8F8EE"><b>✅ 成功导入 ${totalImported} 名学生（${sheetNames.length} 个Sheet）</b></div>`;
       $('importPreview').classList.remove('hidden');
       renderStudents(); updateCount();
     } catch(err) { alert('解析失败: ' + err.message); }
