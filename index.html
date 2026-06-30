@@ -352,7 +352,12 @@ td input[type="checkbox"], th input[type="checkbox"] { width: 18px; height: 18px
 <div class="page" id="page-overview">
   <div class="card">
     <h2>📊 成绩总览</h2>
-    <button class="btn btn-outline btn-sm" onclick="exportExcel()">📥 导出 Excel</button>
+    <div class="form-row">
+      <div style="flex:1"><label>课程时间</label>
+        <select id="overviewGroup" onchange="renderOverview()"><option value="">-- 全部 --</option></select>
+      </div>
+      <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button class="btn btn-outline btn-sm" onclick="exportExcel()">📥 导出 Excel</button></div>
+    </div>
     <div style="overflow-x:auto;margin-top:8px">
       <table id="overviewTable"><thead></thead><tbody></tbody></table>
     </div>
@@ -519,7 +524,7 @@ document.getElementById('nav').addEventListener('click', function(e) {
   if (page === 'competition') { populateGroupSelect('compGroup'); }
   if (page === 'sunny') { populateGroupSelect('sunnyGroup'); }
   if (page === 'query') { populateGroupSelect('queryGroup'); populateStudentSelect('detailStudent'); }
-  if (page === 'overview') { populateStudentSelect('detailStudent'); renderOverview(); }
+  if (page === 'overview') { populateGroupSelect('overviewGroup'); populateStudentSelect('detailStudent'); renderOverview(); }
 });
 
 // ========== STUDENT MANAGEMENT ==========
@@ -1068,10 +1073,16 @@ function calcTotal(s) {
 }
 
 // ========== OVERVIEW ==========
+function getOverviewStudents() {
+  var students = DB.currentCourse ? DB.students.filter(function(s) { return (s.course || '') === DB.currentCourse; }) : DB.students;
+  var selGroup = ($('overviewGroup') && $('overviewGroup').value) || '';
+  if (selGroup) students = students.filter(function(s) { return (s.group || '').trim() === selGroup; });
+  return students;
+}
 function renderOverview() {
   const thead = $('overviewTable').querySelector('thead');
   const tbody = $('overviewTable').querySelector('tbody');
-  const students = DB.currentCourse ? DB.students.filter(s => (s.course || '') === DB.currentCourse) : DB.students;
+  const students = getOverviewStudents();
   const cfg = getCourseConfig(DB.currentCourse || '垒球');
   thead.innerHTML = `<tr>
     <th>课程类型</th><th>课程时间</th><th>班级</th><th>姓名</th><th>学号</th><th>性别</th>
@@ -1093,7 +1104,7 @@ function renderOverview() {
 }
 function refreshStats() {
   const group = $('statGroup').value;
-  const allStudents = DB.currentCourse ? DB.students.filter(s => (s.course || '') === DB.currentCourse) : DB.students;
+  const allStudents = getOverviewStudents();
   if (allStudents.length === 0) { $('statsGrid').innerHTML = '<div style="padding:12px;color:var(--text2)">暂无数据</div>'; return; }
   let groups = {};
   if (group === 'group') {
