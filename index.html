@@ -529,7 +529,7 @@ function handleFile(e) {
   const reader = new FileReader();
   reader.onload = function(ev) {
     try {
-      const wb = XLSX.read(ev.target.result, { type: 'binary' });
+      const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
       const manualGroup = $('importGroup').value.trim();
       const importCourse = DB.currentCourse;
       let totalImported = 0;
@@ -537,8 +537,8 @@ function handleFile(e) {
       for (const sheetName of sheetNames) {
         const ws = wb.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        if (rows.length < 2) continue;
-        const header = rows[0].map(h => String(h || '').trim());
+        if (!rows || rows.length < 2) continue;
+        const header = (rows[0] || []).map(h => String(h || '').trim());
         const colClass = header.findIndex(h => h.includes('班级'));
         const colName = header.findIndex(h => h.includes('姓名'));
         const colSid = header.findIndex(h => h.includes('学号'));
@@ -576,7 +576,7 @@ function handleFile(e) {
       renderStudents(); updateCount();
     } catch(err) { alert('解析失败: ' + err.message); }
   };
-  reader.readAsBinaryString(file);
+  reader.readAsArrayBuffer(file);
 }
 
 function addStudent() {
