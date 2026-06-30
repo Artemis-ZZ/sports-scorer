@@ -1197,25 +1197,23 @@ function formatTime(val) {
 
 // ========== EXPORT (41-column template) ==========
 function exportExcel() {
-  var courses = ['垒球', '户外运动'];
-  for (var ci = 0; ci < courses.length; ci++) {
-    var courseName = courses[ci];
-    var courseStudents = DB.students.filter(function(s) { return (s.course || '') === courseName; });
-    if (courseStudents.length === 0) continue;
-    
-    var groups = {};
-    for (var si = 0; si < courseStudents.length; si++) {
-      var s = courseStudents[si];
-      var key = (s.group || '').trim() || s.class || '未分组';
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(s);
-    }
-    
-    var wb = XLSX.utils.book_new();
-    var ATT_SYMBOL = { '旷课': '○', '病假': '◎', '事假': '⊕', '公假': '√' };
-    var startDate = DB.startDate ? new Date(DB.startDate + 'T00:00:00') : null;
-    var cfg = getCourseConfig(courseName);
-    var groupKeys = Object.keys(groups);
+  var courseName = DB.currentCourse || '垒球';
+  var cfg = getCourseConfig(courseName);
+  var courseStudents = DB.students.filter(function(s) { return (s.course || '') === courseName; });
+  if (courseStudents.length === 0) { alert('当前课程暂无学生数据'); return; }
+  
+  var groups = {};
+  for (var si = 0; si < courseStudents.length; si++) {
+    var s = courseStudents[si];
+    var key = (s.group || '').trim() || s.class || '未分组';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(s);
+  }
+  
+  var wb = XLSX.utils.book_new();
+  var ATT_SYMBOL = { '旷课': '○', '病假': '◎', '事假': '⊕', '公假': '√' };
+  var startDate = DB.startDate ? new Date(DB.startDate + 'T00:00:00') : null;
+  var groupKeys = Object.keys(groups);
     
     for (var gi = 0; gi < groupKeys.length; gi++) {
       var className = groupKeys[gi];
@@ -1351,9 +1349,8 @@ function exportExcel() {
 
     const sheetName = className.slice(0, 31);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    }
-    XLSX.writeFile(wb, courseName + '成绩册.xlsx');
   }
+  XLSX.writeFile(wb, courseName + '成绩册.xlsx');
 }
 
 // ========== DATA BACKUP ==========
