@@ -538,7 +538,7 @@ function handleFile(e) {
         const ws = wb.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
         if (!rows || rows.length < 2) continue;
-        const header = (rows[0] || []).map(h => String(h || '').trim());
+        const header = (rows[0] || []).map(h => (h != null) ? String(h).trim() : '');
         const colClass = header.findIndex(h => h.includes('班级'));
         const colName = header.findIndex(h => h.includes('姓名'));
         const colSid = header.findIndex(h => h.includes('学号'));
@@ -1353,7 +1353,7 @@ if (DB.startDate) { const el = document.getElementById('semesterStart'); if (el)
 <!-- Service Worker -->
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=2').catch(() => {});
+  navigator.serviceWorker.register('sw.js?v=3').catch(() => {});
 }
 </script>
 </body>

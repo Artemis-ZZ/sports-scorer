@@ -1,4 +1,4 @@
-const CACHE = 'sports-v2';
+const CACHE = 'sports-v3';
 
 self.addEventListener('install', function(e) {
   self.skipWaiting();
