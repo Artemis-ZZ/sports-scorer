@@ -1197,26 +1197,34 @@ function formatTime(val) {
 
 // ========== EXPORT (41-column template) ==========
 function exportExcel() {
-  const groups = {};
-  for (const s of DB.students) {
-    const key = (s.group || '').trim() || s.class || '未分组';
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(s);
-  }
-  const wb = XLSX.utils.book_new();
-  const ATT_SYMBOL = { '旷课': '○', '病假': '◎', '事假': '⊕', '公假': '√' };
-  const startDate = DB.startDate ? new Date(DB.startDate + 'T00:00:00') : null;
-
-  for (const [className, students] of Object.entries(groups)) {
+  var courses = ['垒球', '户外运动'];
+  for (var ci = 0; ci < courses.length; ci++) {
+    var courseName = courses[ci];
+    var courseStudents = DB.students.filter(function(s) { return (s.course || '') === courseName; });
+    if (courseStudents.length === 0) continue;
+    
+    var groups = {};
+    for (var si = 0; si < courseStudents.length; si++) {
+      var s = courseStudents[si];
+      var key = (s.group || '').trim() || s.class || '未分组';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(s);
+    }
+    
+    var wb = XLSX.utils.book_new();
+    var ATT_SYMBOL = { '旷课': '○', '病假': '◎', '事假': '⊕', '公假': '√' };
+    var startDate = DB.startDate ? new Date(DB.startDate + 'T00:00:00') : null;
+    var cfg = getCourseConfig(courseName);
+    var groupKeys = Object.keys(groups);
+    
+    for (var gi = 0; gi < groupKeys.length; gi++) {
+      var className = groupKeys[gi];
+      var students = groups[className];
     const rows = [];
     // Row 1-3: titles
     const titleRow1 = new Array(41).fill(''); titleRow1[14] = '中 国 传 媒 大 学 体 育 部'; rows.push(titleRow1);
     const titleRow2 = new Array(41).fill(''); titleRow2[14] = '学 生 考 勤 考 核 成 绩 登 记 表'; rows.push(titleRow2);
     const titleRow3 = new Array(41).fill(''); titleRow3[14] = '2025－2026学年第 2 学期（春季学期）'; rows.push(titleRow3);
-
-    // Get course from first student for labels
-    const firstCourse = students[0] ? students[0].course : '';
-    const cfg = getCourseConfig(firstCourse || '垒球');
 
     // Row 4: main headers
     const h1 = new Array(41).fill('');
@@ -1343,8 +1351,9 @@ function exportExcel() {
 
     const sheetName = className.slice(0, 31);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    }
+    XLSX.writeFile(wb, courseName + '成绩册.xlsx');
   }
-  XLSX.writeFile(wb, '体育成绩册.xlsx');
 }
 
 // ========== DATA BACKUP ==========
