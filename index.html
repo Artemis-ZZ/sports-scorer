@@ -501,7 +501,7 @@ function getCourseConfig(course) {
 function updateSportLabels() {
   const cfg = getCourseConfig(DB.currentCourse || '垒球');
   $('sportHeader').textContent = `${cfg.icon} 按课程时间录入${cfg.name}专项成绩`;
-  $('sportHint').textContent = `${cfg.sport1Label}(${cfg.sport1Max}分) + ${cfg.sport2Label}(${cfg.sport2Max}分)，焦点移出自动保存`;
+  $('sportHint').textContent = `${cfg.sport1Label}(${cfg.sport1Max}分) + ${cfg.sport2Label}(${cfg.sport2Max}分)，直接填分数，移出焦点自动保存`;
 }
 
 // ========== NAVIGATION ==========
@@ -909,48 +909,30 @@ function loadGroupSport() {
   if (!group) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">请选择课程时间</div>'; return; }
   const students = DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group);
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
-  // Detect course from first student
   const firstCourse = students[0].course;
   const cfg = getCourseConfig(firstCourse || '垒球');
   let html = `<div style="overflow-x:auto"><table>
-    <thead><tr><th>姓名</th><th>学号</th><th>性别</th><th>${cfg.sport1Label} 成绩</th><th>${cfg.sport1Label} 得分/${cfg.sport1Max}</th><th>${cfg.sport2Label} 成绩</th><th>${cfg.sport2Label} 得分/${cfg.sport2Max}</th></tr></thead><tbody>`;
+    <thead><tr><th>姓名</th><th>学号</th><th>性别</th><th>${cfg.sport1Label}<br>(${cfg.sport1Max}分)</th><th>${cfg.sport2Label}<br>(${cfg.sport2Max}分)</th></tr></thead><tbody>`;
   for (const s of students) {
-    s.sport = s.sport || {};
-    const v1 = s.sport.sp1_raw || '';
-    const v2 = s.sport.sp2_raw || '';
-    const s1 = v1 !== '' && v1 !== undefined ? parseFloat(v1) : '';
-    const s2 = v2 !== '' && v2 !== undefined ? parseFloat(v2) : '';
+    s.sport = s.sport || { sp1_score: null, sp2_score: null };
+    const v1 = s.sport.sp1_score !== null && s.sport.sp1_score !== undefined ? s.sport.sp1_score : '';
+    const v2 = s.sport.sp2_score !== null && s.sport.sp2_score !== undefined ? s.sport.sp2_score : '';
     html += `<tr>
       <td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td>
-      <td><input type="number" id="gsp1_${s.id}" value="${esc(String(v1))}" placeholder="原始成绩" onchange="saveGroupSport('${s.id}','sp1_raw',${cfg.sport1Max})" style="width:80px;padding:4px 6px;font-size:13px"></td>
-      <td style="font-weight:bold;color:var(--primary)" id="gsp1_score_${s.id}">${calcSportScore(s, cfg)}</td>
-      <td><input type="number" id="gsp2_${s.id}" value="${esc(String(v2))}" placeholder="原始成绩" onchange="saveGroupSport('${s.id}','sp2_raw',${cfg.sport2Max})" style="width:80px;padding:4px 6px;font-size:13px"></td>
-      <td style="font-weight:bold;color:var(--primary)" id="gsp2_score_${s.id}">${v2!==''?Math.min(cfg.sport2Max, parseFloat(v2)||0)+'分':''}</td>
+      <td><input type="number" id="gsp1_${s.id}" value="${v1}" placeholder="0-${cfg.sport1Max}" onchange="saveGroupSport('${s.id}','sp1_score',${cfg.sport1Max})" style="width:70px;padding:4px 6px;font-size:13px"></td>
+      <td><input type="number" id="gsp2_${s.id}" value="${v2}" placeholder="0-${cfg.sport2Max}" onchange="saveGroupSport('${s.id}','sp2_score',${cfg.sport2Max})" style="width:70px;padding:4px 6px;font-size:13px"></td>
     </tr>`;
   }
   html += '</tbody></table></div>';
   container.innerHTML = html;
 }
-function calcSportScore(s, cfg) {
-  s.sport = s.sport || {};
-  const v = s.sport.sp1_raw;
-  if (v === undefined || v === null || v === '') return '';
-  const score = parseFloat(v) || 0;
-  return Math.min(cfg.sport1Max, score) + '分';
-}
 function saveGroupSport(sid, field, maxVal) {
   const s = getStudent(sid); if (!s) return;
   s.sport = s.sport || {};
-  const val = document.getElementById((field === 'sp1_raw' ? 'gsp1_' : 'gsp2_') + sid).value;
-  s.sport[field] = val;
+  const val = document.getElementById((field === 'sp1_score' ? 'gsp1_' : 'gsp2_') + sid).value;
+  let num = val === '' || val === null ? null : Math.min(maxVal, Math.max(0, parseFloat(val) || 0));
+  s.sport[field] = num;
   saveDB();
-  const cfg = getCourseConfig(s.course || '垒球');
-  if (field === 'sp1_raw') {
-    document.getElementById('gsp1_score_' + sid).textContent = calcSportScore(s, cfg);
-  } else {
-    const v = parseFloat(val) || 0;
-    document.getElementById('gsp2_score_' + sid).textContent = val !== '' ? Math.min(maxVal, v) + '分' : '';
-  }
 }
 
 // ========== COMPETITION (赛事) ==========
@@ -1040,8 +1022,8 @@ function calcTotal(s) {
   const comp = calcCompScore(s);
   const cfg = getCourseConfig(s.course || '垒球');
   s.sport = s.sport || {};
-  const sp1 = s.sport.sp1_raw !== undefined && s.sport.sp1_raw !== '' ? Math.min(cfg.sport1Max, parseFloat(s.sport.sp1_raw) || 0) : 0;
-  const sp2 = s.sport.sp2_raw !== undefined && s.sport.sp2_raw !== '' ? Math.min(cfg.sport2Max, parseFloat(s.sport.sp2_raw) || 0) : 0;
+  const sp1 = s.sport.sp1_score !== null && s.sport.sp1_score !== undefined ? s.sport.sp1_score : 0;
+  const sp2 = s.sport.sp2_score !== null && s.sport.sp2_score !== undefined ? s.sport.sp2_score : 0;
   const sunny = s.sunny !== undefined && s.sunny !== null && s.sunny !== '' ? (parseFloat(s.sunny) || 0) : 10;
   return {
     att: att.score, fit: fit.total, sp1, sp2, comp,
@@ -1148,8 +1130,8 @@ function showStudentDetail() {
     html += fitnessDetailRow('引体向上', f.f_pullup, fit.f_pullup, '个');
   }
   html += `<tr style="background:var(--bg)"><td colspan="6"><b>${cfg.icon} ${cfg.name}专项</b></td></tr>`;
-  html += fitnessDetailRow(cfg.sport1Label, (s.sport||{}).sp1_raw || '—', total.sp1, '');
-  html += fitnessDetailRow(cfg.sport2Label, (s.sport||{}).sp2_raw || '—', total.sp2, '');
+  html += fitnessDetailRow(cfg.sport1Label, total.sp1 + '分', '', '');
+  html += fitnessDetailRow(cfg.sport2Label, total.sp2 + '分', '', '');
   html += `<tr style="background:var(--bg)"><td colspan="6"><b>🏆 专项赛事</b> — ${total.comp}/10</td></tr>`;
   html += `<tr style="background:var(--bg)"><td colspan="6"><b>☀️ 阳光长跑</b> — ${total.sunny}/10</td></tr>
     <tr style="background:var(--bg)"><td><b>🏅 总分</b></td><td><b style="color:var(--primary);font-size:16px">${total.total.toFixed(1)}/100</b></td><td colspan="4"></td></tr></table>`;
@@ -1259,11 +1241,11 @@ function exportExcel() {
         r[27] = f.f_pullup || ''; r[28] = scoreCount(parseFloat(f.f_pullup), MALE_PULLUPS); r[28] = r[28] !== undefined ? r[28] : '';
       }
       r[29] = t.fit.toFixed(1);
-      // Sport
-      r[30] = (s.sport||{}).sp1_raw || '';
-      r[31] = t.sp1 !== undefined ? t.sp1 : '';
-      r[32] = (s.sport||{}).sp2_raw || '';
-      r[33] = t.sp2 !== undefined ? t.sp2 : '';
+      // Sport — 成绩列空白，只填得分列
+      r[30] = '';                             // AE: 专项一 成绩（空白）
+      r[31] = t.sp1 !== undefined ? t.sp1 : '';  // AF: 专项一 得分
+      r[32] = '';                             // AG: 专项二 成绩（空白）
+      r[33] = t.sp2 !== undefined ? t.sp2 : '';  // AH: 专项二 得分
       // Competition
       s.comp = s.comp || { comp1: null, comp2: null, school: null };
       r[34] = s.comp.comp1 !== null ? s.comp.comp1 : '';
@@ -1364,7 +1346,7 @@ if (DB.startDate) { const el = document.getElementById('semesterStart'); if (el)
 <!-- Service Worker -->
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=1').catch(() => {});
+  navigator.serviceWorker.register('sw.js?v=2').catch(() => {});
 }
 </script>
 </body>
