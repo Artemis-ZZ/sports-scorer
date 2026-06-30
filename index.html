@@ -1051,7 +1051,7 @@ function renderOverview() {
       return `<tr class="${t.disqualified?'disqualified':''}">
         <td>${esc(s.course||'')}</td><td>${esc(s.group||'')}</td><td>${esc(s.class)}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td>
         <td>${s.exempt?'':t.att}</td><td>${s.exempt?'':t.fit.toFixed(1)}</td><td>${s.exempt?'':t.sp1}</td><td>${s.exempt?'':t.sp2}</td><td>${s.exempt?'':t.comp}</td><td>${s.exempt?'':t.sunny}</td>
-        <td><b class="${t.total<60?'score-bad':''}">${s.exempt?'':t.total.toFixed(1)}</b></td>
+        <td><b class="${t.total>=60?'score-good':'score-bad'}">${s.exempt?'':t.total.toFixed(1)}</b></td>
         <td>${t.disqualified?'<span class="tag tag-danger">取消资格</span>':s.exempt?'<span class="tag tag-info">免修</span>':'<span class="tag tag-info">正常</span>'}</td></tr>`;
     }).join('');
   }
