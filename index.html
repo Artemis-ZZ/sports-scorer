@@ -524,60 +524,81 @@ document.getElementById('nav').addEventListener('click', function(e) {
 
 // ========== STUDENT MANAGEMENT ==========
 function handleFile(e) {
-  const file = e.target.files[0];
+  var file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
+  var reader = new FileReader();
   reader.onload = function(ev) {
     try {
-      const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-      const manualGroup = $('importGroup').value.trim();
-      const importCourse = DB.currentCourse;
-      let totalImported = 0;
-      const sheetNames = wb.SheetNames;
-      for (const sheetName of sheetNames) {
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        if (!rows || rows.length < 2) continue;
-        // Manually find columns to avoid sparse array issues
-        var colClass = -1, colName = -1, colSid = -1, colGender = -1;
-        var headerRow = rows[0] || [];
-        for (var ci = 0; ci < headerRow.length; ci++) {
-          var h = headerRow[ci];
-          if (h == null) continue;
-          var s = String(h).trim();
-          if (colClass < 0 && s.includes('班级')) colClass = ci;
-          if (colName < 0 && s.includes('姓名')) colName = ci;
-          if (colSid < 0 && s.includes('学号')) colSid = ci;
-          if (colGender < 0 && s.includes('性别')) colGender = ci;
-        }
-        if (colClass < 0 || colName < 0 || colSid < 0) continue;
-        var group = manualGroup || sheetName;
-        var imported = 0;
-        for (var i = 1; i < rows.length; i++) {
-          var r = rows[i];
-          if (!r || r[colName] == null || String(r[colName]).trim() === '') continue;
-          var sid = String(r[colSid] != null ? r[colSid] : '').trim();
-          if (!sid || DB.students.some(function(s) { return s.sid === sid; })) continue;
-          var gender = '男';
-          if (colGender >= 0 && r[colGender] != null) {
-            var g = String(r[colGender]).trim();
-            if (g.includes('女')) gender = '女';
+      var data = new Uint8Array(ev.target.result);
+      var wb = XLSX.read(data, { type: 'array' });
+      var manualGroup = $('importGroup').value.trim();
+      var importCourse = DB.currentCourse;
+      var totalImported = 0, sheetsOk = 0;
+      var sheetNames = wb.SheetNames;
+      for (var si = 0; si < sheetNames.length; si++) {
+        try {
+          var sheetName = sheetNames[si];
+          var ws = wb.Sheets[sheetName];
+          if (!ws) continue;
+          var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+          if (!rows || !Array.isArray(rows) || rows.length < 2) continue;
+          // Find columns
+          var colClass = -1, colName = -1, colSid = -1, colGender = -1;
+          var headerRow = rows[0];
+          if (!Array.isArray(headerRow)) continue;
+          for (var ci = 0; ci < headerRow.length; ci++) {
+            var h = headerRow[ci];
+            if (h === null || h === undefined || h === '') continue;
+            var s = String(h).trim();
+            if (s && colClass < 0 && s.indexOf('班级') >= 0) colClass = ci;
+            if (s && colName < 0 && s.indexOf('姓名') >= 0) colName = ci;
+            if (s && colSid < 0 && s.indexOf('学号') >= 0) colSid = ci;
+            if (s && colGender < 0 && s.indexOf('性别') >= 0) colGender = ci;
           }
-          DB.students.push({
-            id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
-            class: String(r[colClass] != null ? r[colClass] : '').trim(),
-            name: String(r[colName] != null ? r[colName] : '').trim(), sid: sid, gender: gender,
-            course: importCourse,
-            group: group,
-            exempt: false,
-            attendance: [], fitness: {}, sport: {}, comp: { comp1: null, comp2: null, school: null }, sunny: null
-          });
-          imported++;
-        }
-        totalImported += imported;
+          if (colClass < 0 || colName < 0 || colSid < 0) continue;
+          var group = manualGroup || sheetName;
+          var imported = 0;
+          for (var i = 1; i < rows.length; i++) {
+            var r = rows[i];
+            if (!r || !Array.isArray(r)) continue;
+            var nameVal = r[colName];
+            if (nameVal === null || nameVal === undefined || String(nameVal).trim() === '') continue;
+            var sidVal = r[colSid];
+            if (sidVal === null || sidVal === undefined || String(sidVal).trim() === '') continue;
+            var sid = String(sidVal).trim();
+            var dup = false;
+            for (var di = 0; di < DB.students.length; di++) { if (DB.students[di].sid === sid) { dup = true; break; } }
+            if (dup) continue;
+            var gender = '男';
+            if (colGender >= 0) {
+              var gv = r[colGender];
+              if (gv !== null && gv !== undefined) {
+                var gs = String(gv).trim();
+                if (gs.indexOf('女') >= 0) gender = '女';
+              }
+            }
+            var clsVal = r[colClass];
+            var cls = (clsVal !== null && clsVal !== undefined) ? String(clsVal).trim() : '';
+            DB.students.push({
+              id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
+              class: cls,
+              name: String(nameVal).trim(), sid: sid, gender: gender,
+              course: importCourse,
+              group: group,
+              exempt: false,
+              attendance: [], fitness: {}, sport: {}, comp: { comp1: null, comp2: null, school: null }, sunny: null
+            });
+            imported++;
+          }
+          if (imported > 0) sheetsOk++;
+          totalImported += imported;
+        } catch(se) { /* skip problematic sheet */ }
       }
       saveDB();
-      $('importPreview').innerHTML = '<div class="card" style="background:#E8F8EE"><b>✅ 成功导入 ' + totalImported + ' 名学生（' + sheetNames.length + ' 个Sheet）</b></div>';
+      var msg = totalImported > 0
+        ? '✅ 成功导入 ' + totalImported + ' 名学生（' + sheetsOk + ' 个Sheet有效）'
+        : '⚠️ 未找到有效数据，请检查Excel是否包含"班级、姓名、学号"列';
+      $('importPreview').innerHTML = '<div class="card" style="background:' + (totalImported > 0 ? '#E8F8EE' : '#FFF3CD') + '"><b>' + msg + '</b></div>';
       $('importPreview').classList.remove('hidden');
       renderStudents(); updateCount();
     } catch(err) { alert('解析失败: ' + err.message); }
