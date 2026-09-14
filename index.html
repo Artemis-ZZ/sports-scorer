@@ -185,6 +185,11 @@ td input[type="checkbox"], th input[type="checkbox"] { width: 18px; height: 18px
 
   <div class="card" id="studentListCard">
     <h2>👥 学生列表 <span style="font-size:12px;color:var(--text2)" id="listInfo"></span></h2>
+    <div class="form-row">
+      <div style="flex:1"><label>课程时间</label>
+        <select id="studentGroup" onchange="renderStudents()"><option value="">-- 全部 --</option></select>
+      </div>
+    </div>
     <div style="overflow-x:auto">
       <table id="studentTable">
         <thead><tr><th style="width:32px"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th><th>课程类型</th><th>课程时间</th><th>班级</th><th>姓名</th><th>学号</th><th>性别</th><th>状态</th><th>操作</th></tr></thead>
@@ -427,7 +432,7 @@ function switchCourse(course) {
   const target = document.querySelector(`header .course-switch button[data-course="${course}"]`);
   if (target) target.classList.add('active');
   // Refresh views
-  renderStudents(); updateCount();
+  populateGroupSelect('studentGroup'); renderStudents(); updateCount();
   updateSportLabels();
   document.querySelectorAll('#nav button.active').forEach(b => { if (b.dataset.page === 'sport') loadGroupSport(); });
 }
@@ -521,7 +526,7 @@ document.getElementById('nav').addEventListener('click', function(e) {
   e.target.classList.add('active');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   $('page-' + page).classList.add('active');
-  if (page === 'students') renderStudents();
+  if (page === 'students') { populateGroupSelect('studentGroup'); renderStudents(); }
   if (page === 'attendance') { populateStudentSelect('attStudent'); populateGroupSelect('attGroup'); $('attGroupDate').value = new Date().toISOString().split('T')[0]; }
   if (page === 'fitness') { populateStudentSelect('fitStudent'); populateGroupSelect('fitGroup'); }
   if (page === 'sport') { populateGroupSelect('sportGroup'); updateSportLabels(); }
@@ -675,7 +680,9 @@ function batchDelete() {
 
 function renderStudents() {
   const tbody = $('studentTbody');
-  const students = DB.currentCourse ? DB.students.filter(s => (s.course || '') === DB.currentCourse) : DB.students;
+  var students = DB.currentCourse ? DB.students.filter(s => (s.course || '') === DB.currentCourse) : DB.students;
+  var selGroup = ($('studentGroup') && $('studentGroup').value) || '';
+  if (selGroup) students = students.filter(function(s) { return (s.group || '').trim() === selGroup; });
   if (students.length === 0) {
     tbody.innerHTML = '<tr><td colspan="9" style="color:var(--text2);padding:24px">暂无学生，请导入或手动添加</td></tr>';
   } else {
@@ -1460,6 +1467,7 @@ function saveSemesterStart() {
 // ========== INIT ==========
 restoreCourse();
 updateCount();
+populateGroupSelect('studentGroup');
 renderStudents();
 if (DB.startDate) { const el = document.getElementById('semesterStart'); if (el) el.value = DB.startDate; }
 </script>
