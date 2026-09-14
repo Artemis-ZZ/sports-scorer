@@ -805,8 +805,8 @@ function loadGroupAttendance() {
     else if (symbol.startsWith('△')) clr = 'var(--primary)';
     else if (symbol) clr = 'var(--danger)';
     html += `<tr><td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
-      <td>${exempt?'<span class="tag tag-info">免修</span>':'<span class="tag tag-warn">正常</span>'}</td>
-      <td style="font-size:20px;font-weight:bold;${exempt?'color:#000':clr?'color:'+clr:''}">${exempt?'✓':symbol}</td>
+      <td>${exempt?'<span class="tag tag-danger">免修</span>':'<span class="tag tag-warn">正常</span>'}</td>
+      <td style="font-size:20px;font-weight:bold;${clr?'color:'+clr:''}">${exempt?'':symbol}</td>
       <td><button class="btn btn-sm btn-outline" onclick="markGroupAtt('${s.id}','${date}','')" style="padding:2px 6px;margin:1px;font-size:12px" ${exempt?'disabled':''}>出勤</button>`;
     for (const t of attTypes) {
       html += `<button class="btn btn-sm btn-outline" onclick="markGroupAtt('${s.id}','${date}','${t}')" style="padding:2px 6px;margin:1px;font-size:12px" ${exempt?'disabled':''}>${ATT_SYMBOL[t]}${t}</button>`;
@@ -1374,8 +1374,8 @@ function exportExcel() {
       r[36] = s.comp.school !== null ? s.comp.school : '';
       r[37] = t.comp !== undefined ? t.comp : '';
       // Sunny, total, notes
-      r[38] = t.sunny !== undefined ? t.sunny : '';
-      r[39] = t.total.toFixed(1);
+      r[38] = s.exempt ? '' : (t.sunny !== undefined ? t.sunny : '');
+      r[39] = s.exempt ? '' : t.total.toFixed(1);
       const notes = [];
       if (s.exempt) notes.push('免修');
       if (t.disqualified) notes.push('取消资格');
