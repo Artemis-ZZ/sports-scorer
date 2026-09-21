@@ -565,15 +565,13 @@ function handleFile(e) {
       var wb = XLSX.read(data, { type: 'array' });
       var manualGroup = $('importGroup').value.trim();
       var importCourse = DB.currentCourse;
-      // 旧学生索引：学号|姓名 → 旧学生对象（仅当前课程）
+      // 旧学生索引：课程|学号|姓名 → 旧学生对象
       var oldMap = {};
       for (var k = 0; k < DB.students.length; k++) {
         var os = DB.students[k];
-        if ((os.course || '') === importCourse) {
-          oldMap[os.sid + '|' + os.name] = os;
-        }
+        oldMap[(os.course || '') + '|' + os.sid + '|' + os.name] = os;
       }
-      // 收集新名单，按 group 分组，保持 Excel 顺序
+      // 收集新名单，按 课程|课程时间 分组，保持 Excel 顺序
       var newByGroup = {};
       var groupOrder = [];
       var totalImported = 0, totalKept = 0, sheetsOk = 0;
@@ -598,8 +596,15 @@ function handleFile(e) {
             if (s && colGender < 0 && s.indexOf('性别') >= 0) colGender = ci;
           }
           if (colClass < 0 || colName < 0 || colSid < 0) continue;
-          var group = manualGroup || sheetName;
-          if (!newByGroup[group]) { newByGroup[group] = []; groupOrder.push(group); }
+          // 前缀识别课程类型 + 课程时间
+          var course = importCourse;
+          var group;
+          if (sheetName.indexOf('户外运动') === 0) { course = '户外运动'; group = sheetName.slice(4).trim(); }
+          else if (sheetName.indexOf('户外') === 0) { course = '户外运动'; group = sheetName.slice(2).trim(); }
+          else if (sheetName.indexOf('垒球') === 0) { course = '垒球'; group = sheetName.slice(2).trim(); }
+          else { group = manualGroup || sheetName; }
+          var groupKey = course + '|' + group;
+          if (!newByGroup[groupKey]) { newByGroup[groupKey] = []; groupOrder.push({ course: course, group: group }); }
           var imported = 0, sheetKept = 0;
           for (var i = 1; i < rows.length; i++) {
             var r = rows[i];
@@ -618,17 +623,17 @@ function handleFile(e) {
               }
             }
             var cls = String(r[colClass] || '').trim();
-            // 学号+姓名双匹配，保留原有成绩
-            var key = sid + '|' + name;
+            // 课程+学号+姓名匹配，保留原有成绩
+            var key = course + '|' + sid + '|' + name;
             var old = oldMap[key];
             if (old) {
-              newByGroup[group].push({
+              newByGroup[groupKey].push({
                 id: old.id,
                 class: cls || old.class,
                 name: name,
                 sid: sid,
                 gender: gender,
-                course: importCourse,
+                course: course,
                 group: group,
                 exempt: old.exempt,
                 attendance: old.attendance || [],
@@ -641,13 +646,13 @@ function handleFile(e) {
               totalKept++;
               sheetKept++;
             } else {
-              newByGroup[group].push({
+              newByGroup[groupKey].push({
                 id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
                 class: cls,
                 name: name,
                 sid: sid,
                 gender: gender,
-                course: importCourse,
+                course: course,
                 group: group,
                 exempt: false,
                 attendance: [], fitness: {}, sport: {}, comp: { comp1: null, comp2: null, school: null }, sunny: null
@@ -661,11 +666,13 @@ function handleFile(e) {
           console.error('Sheet ' + sheetName + ' error:', sheetErr);
         }
       }
-      // 替换导入的 group（仅当前课程），其他 group 保留不动
+      // 替换导入的 课程|课程时间，其他保留不动
       for (var gi = 0; gi < groupOrder.length; gi++) {
-        var g = groupOrder[gi];
-        DB.students = DB.students.filter(function(s) { return !((s.course || '') === importCourse && (s.group || '').trim() === g); });
-        var newList = newByGroup[g];
+        var gCourse = groupOrder[gi].course;
+        var gGroup = groupOrder[gi].group;
+        var gKey = gCourse + '|' + gGroup;
+        DB.students = DB.students.filter(function(s) { return !((s.course || '') === gCourse && (s.group || '').trim() === gGroup); });
+        var newList = newByGroup[gKey];
         for (var ni = 0; ni < newList.length; ni++) {
           DB.students.push(newList[ni]);
         }
