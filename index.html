@@ -450,6 +450,7 @@ function switchCourse(course) {
   populateGroupSelect('attQueryGroup'); filterAttStudent();
   populateGroupSelect('fitQueryGroup'); filterFitStudent();
   populateGroupSelect('queryGroup'); filterQueryStudents();
+  populateGroupSelect('overviewGroup'); renderOverview();
   updateSportLabels();
   document.querySelectorAll('#nav button.active').forEach(b => { if (b.dataset.page === 'sport') loadGroupSport(); });
 }
