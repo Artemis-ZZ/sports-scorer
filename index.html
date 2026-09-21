@@ -947,8 +947,21 @@ function loadGroupAttendance() {
 function markGroupAtt(sid, date, type) {
   const s = getStudent(sid); if (!s || s.exempt === true) return;
   s.attendance = s.attendance || [];
-  s.attendance = s.attendance.filter(a => a.date !== date);
-  s.attendance.push({ type: type || '出勤', date, note: '' });
+  const targetType = type || '出勤';
+  // 查找该日期已有记录
+  var existing = null;
+  for (var i = 0; i < s.attendance.length; i++) {
+    if (s.attendance[i].date === date) { existing = s.attendance[i]; break; }
+  }
+  // 再点同一个类型 → 恢复空白（删除该日期记录）
+  if (existing && existing.type === targetType) {
+    s.attendance = s.attendance.filter(function(a) { return a.date !== date; });
+    saveDB(); loadGroupAttendance();
+    return;
+  }
+  // 否则替换为该类型
+  s.attendance = s.attendance.filter(function(a) { return a.date !== date; });
+  s.attendance.push({ type: targetType, date: date, note: '' });
   saveDB(); loadGroupAttendance();
 }
 
