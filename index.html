@@ -547,7 +547,18 @@ function handleFile(e) {
       var wb = XLSX.read(data, { type: 'array' });
       var manualGroup = $('importGroup').value.trim();
       var importCourse = DB.currentCourse;
-      var totalImported = 0, sheetsOk = 0;
+      // 旧学生索引：学号|姓名 → 旧学生对象（仅当前课程）
+      var oldMap = {};
+      for (var k = 0; k < DB.students.length; k++) {
+        var os = DB.students[k];
+        if ((os.course || '') === importCourse) {
+          oldMap[os.sid + '|' + os.name] = os;
+        }
+      }
+      // 收集新名单，按 group 分组，保持 Excel 顺序
+      var newByGroup = {};
+      var groupOrder = [];
+      var totalImported = 0, totalKept = 0, sheetsOk = 0;
       var sheetNames = wb.SheetNames;
       for (var si = 0; si < sheetNames.length; si++) {
         try {
@@ -556,7 +567,6 @@ function handleFile(e) {
           if (!ws) continue;
           var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
           if (!rows || !Array.isArray(rows) || rows.length < 2) continue;
-          // Find columns
           var colClass = -1, colName = -1, colSid = -1, colGender = -1;
           var headerRow = rows[0];
           if (!Array.isArray(headerRow)) continue;
@@ -571,7 +581,8 @@ function handleFile(e) {
           }
           if (colClass < 0 || colName < 0 || colSid < 0) continue;
           var group = manualGroup || sheetName;
-          var imported = 0;
+          if (!newByGroup[group]) { newByGroup[group] = []; groupOrder.push(group); }
+          var imported = 0, sheetKept = 0;
           for (var i = 1; i < rows.length; i++) {
             var r = rows[i];
             if (!r || !Array.isArray(r)) continue;
@@ -580,42 +591,76 @@ function handleFile(e) {
             var sidVal = r[colSid];
             if (sidVal === null || sidVal === undefined || String(sidVal).trim() === '') continue;
             var sid = String(sidVal).trim();
-            var dup = false;
-            for (var di = 0; di < DB.students.length; di++) { if (DB.students[di].sid === sid) { dup = true; break; } }
-            if (dup) continue;
+            var name = String(nameVal).trim();
             var gender = '男';
             if (colGender >= 0) {
               var gv = r[colGender];
               if (gv !== null && gv !== undefined) {
-                var gs = String(gv).trim();
-                if (gs.indexOf('女') >= 0) gender = '女';
+                if (String(gv).indexOf('女') >= 0) gender = '女';
               }
             }
-            var clsVal = r[colClass];
-            var cls = (clsVal !== null && clsVal !== undefined) ? String(clsVal).trim() : '';
-            DB.students.push({
-              id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
-              class: cls,
-              name: String(nameVal).trim(), sid: sid, gender: gender,
-              course: importCourse,
-              group: group,
-              exempt: false,
-              attendance: [], fitness: {}, sport: {}, comp: { comp1: null, comp2: null, school: null }, sunny: null
-            });
-            imported++;
+            var cls = String(r[colClass] || '').trim();
+            // 学号+姓名双匹配，保留原有成绩
+            var key = sid + '|' + name;
+            var old = oldMap[key];
+            if (old) {
+              newByGroup[group].push({
+                id: old.id,
+                class: cls || old.class,
+                name: name,
+                sid: sid,
+                gender: gender,
+                course: importCourse,
+                group: group,
+                exempt: old.exempt,
+                attendance: old.attendance || [],
+                fitness: old.fitness || {},
+                sport: old.sport || {},
+                comp: old.comp || { comp1: null, comp2: null, school: null },
+                sunny: old.sunny,
+                sunny_note: old.sunny_note
+              });
+              totalKept++;
+              sheetKept++;
+            } else {
+              newByGroup[group].push({
+                id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
+                class: cls,
+                name: name,
+                sid: sid,
+                gender: gender,
+                course: importCourse,
+                group: group,
+                exempt: false,
+                attendance: [], fitness: {}, sport: {}, comp: { comp1: null, comp2: null, school: null }, sunny: null
+              });
+              imported++;
+            }
           }
-          if (imported > 0) sheetsOk++;
+          if (imported > 0 || sheetKept > 0) sheetsOk++;
           totalImported += imported;
-        } catch(se) { /* skip problematic sheet */ }
+        } catch(sheetErr) {
+          console.error('Sheet ' + sheetName + ' error:', sheetErr);
+        }
+      }
+      // 替换导入的 group（仅当前课程），其他 group 保留不动
+      for (var gi = 0; gi < groupOrder.length; gi++) {
+        var g = groupOrder[gi];
+        DB.students = DB.students.filter(function(s) { return !((s.course || '') === importCourse && (s.group || '').trim() === g); });
+        var newList = newByGroup[g];
+        for (var ni = 0; ni < newList.length; ni++) {
+          DB.students.push(newList[ni]);
+        }
       }
       saveDB();
-      var msg = totalImported > 0
-        ? '✅ 成功导入 ' + totalImported + ' 名学生（' + sheetsOk + ' 个Sheet有效）'
-        : '⚠️ 未找到有效数据，请检查Excel是否包含"班级、姓名、学号"列';
-      $('importPreview').innerHTML = '<div class="card" style="background:' + (totalImported > 0 ? '#E8F8EE' : '#FFF3CD') + '"><b>' + msg + '</b></div>';
+      var msg = '✅ 导入完成：新增 ' + totalImported + ' 人，保留成绩 ' + totalKept + ' 人（' + sheetsOk + '/' + sheetNames.length + ' 个Sheet）';
+      $('importPreview').innerHTML = '<div class="card" style="background:#E8F8EE"><b>' + msg + '</b></div>';
       $('importPreview').classList.remove('hidden');
       renderStudents(); updateCount();
-    } catch(err) { alert('解析失败: ' + err.message); }
+    } catch(err) {
+      console.error(err);
+      alert('解析失败: ' + err.message);
+    }
   };
   reader.readAsArrayBuffer(file);
 }
@@ -801,8 +846,10 @@ function loadGroupAttendance() {
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   const ATT_SYMBOL = { '出勤': '✓', '旷课': '○', '病假': '◎', '事假': '⊕', '公假': '√', '见习': '△' };
   const attTypes = ['旷课','病假','事假','公假','见习'];
-  let html = `<div style="overflow-x:auto"><table><thead><tr><th>姓名</th><th>学号</th><th>状态</th><th>今日</th><th style="min-width:200px">标记</th></tr></thead><tbody>`;
+  let html = `<div style="overflow-x:auto"><table><thead><tr><th style="width:40px">序号</th><th>姓名</th><th>学号</th><th>状态</th><th>今日</th><th style="min-width:200px">标记</th></tr></thead><tbody>`;
+  let attSeq = 0;
   for (const s of students) {
+    attSeq++;
     const exempt = s.exempt === true;
     const att = (s.attendance || []).filter(a => a.date === date);
     let symbol = att.length > 0 ? (ATT_SYMBOL[att[0].type] || '') : '';
@@ -811,7 +858,7 @@ function loadGroupAttendance() {
     if (symbol === '✓') clr = 'var(--success)';
     else if (symbol.startsWith('△')) clr = 'var(--primary)';
     else if (symbol) clr = 'var(--danger)';
-    html += `<tr><td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
+    html += `<tr><td style="color:var(--text2)">${attSeq}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
       <td>${exempt?'<span class="tag tag-danger">免修</span>':'<span class="tag tag-warn">正常</span>'}</td>
       <td style="font-size:20px;font-weight:bold;${clr?'color:'+clr:''}">${exempt?'':symbol}</td>
       <td><button class="btn btn-sm btn-outline" onclick="markGroupAtt('${s.id}','${date}','')" style="padding:2px 6px;margin:1px;font-size:12px" ${exempt?'disabled':''}>出勤</button>`;
@@ -916,12 +963,14 @@ function loadGroupFitness() {
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   const isFemaleOnly = item === 'f_800m' || item === 'f_situp';
   const isMaleOnly = item === 'f_1000m' || item === 'f_pullup';
-  let html = `<div style="overflow-x:auto"><table><thead><tr><th>姓名</th><th>学号</th><th>性别</th><th>成绩</th><th>得分</th></tr></thead><tbody>`;
+  let html = `<div style="overflow-x:auto"><table><thead><tr><th style="width:40px">序号</th><th>姓名</th><th>学号</th><th>性别</th><th>成绩</th><th>得分</th></tr></thead><tbody>`;
+  let fitSeq = 0;
   for (const s of students) {
+    fitSeq++;
     s.fitness = s.fitness || {};
     const curVal = s.fitness[item] || '';
     if ((isFemaleOnly && s.gender !== '女') || (isMaleOnly && s.gender !== '男')) {
-      html += `<tr style="color:var(--text2)"><td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td><td colspan="2">— 无需测试</td></tr>`;
+      html += `<tr style="color:var(--text2)"><td>${fitSeq}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td><td colspan="2">— 无需测试</td></tr>`;
       continue;
     }
     let placeholder = '';
@@ -929,7 +978,7 @@ function loadGroupFitness() {
     else if (item === 'f_800m' || item === 'f_1000m') placeholder = '分:秒 如 3:30';
     else if (item === 'f_lj') placeholder = 'cm';
     else if (item === 'f_situp' || item === 'f_pullup') placeholder = '个';
-    html += `<tr><td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td>
+    html += `<tr><td style="color:var(--text2)">${fitSeq}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td>
       <td><input type="text" id="gf_${s.id}" value="${esc(curVal)}" placeholder="${placeholder}" onchange="saveGroupFitness('${s.id}','${item}')" style="width:90px;padding:6px 8px;font-size:14px"></td>
       <td><span id="gf_score_${s.id}" style="font-weight:bold;font-size:15px">${calcFitnessScore(s, item)}</span></td></tr>`;
   }
@@ -965,13 +1014,15 @@ function loadGroupSport() {
   const firstCourse = students[0].course;
   const cfg = getCourseConfig(firstCourse || '垒球');
   let html = `<div style="overflow-x:auto"><table>
-    <thead><tr><th>姓名</th><th>学号</th><th>性别</th><th>${cfg.sport1Label}<br>(${cfg.sport1Max}分)</th><th>${cfg.sport2Label}<br>(${cfg.sport2Max}分)</th></tr></thead><tbody>`;
+    <thead><tr><th style="width:40px">序号</th><th>姓名</th><th>学号</th><th>性别</th><th>${cfg.sport1Label}<br>(${cfg.sport1Max}分)</th><th>${cfg.sport2Label}<br>(${cfg.sport2Max}分)</th></tr></thead><tbody>`;
+  let sportSeq = 0;
   for (const s of students) {
+    sportSeq++;
     s.sport = s.sport || { sp1_score: null, sp2_score: null };
     const v1 = s.sport.sp1_score !== null && s.sport.sp1_score !== undefined ? s.sport.sp1_score : '';
     const v2 = s.sport.sp2_score !== null && s.sport.sp2_score !== undefined ? s.sport.sp2_score : '';
     html += `<tr>
-      <td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td>
+      <td style="color:var(--text2)">${sportSeq}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td>
       <td><input type="number" id="gsp1_${s.id}" value="${v1}" placeholder="0-${cfg.sport1Max}" onchange="saveGroupSport('${s.id}','sp1_score',${cfg.sport1Max})" style="width:70px;padding:4px 6px;font-size:13px"></td>
       <td><input type="number" id="gsp2_${s.id}" value="${v2}" placeholder="0-${cfg.sport2Max}" onchange="saveGroupSport('${s.id}','sp2_score',${cfg.sport2Max})" style="width:70px;padding:4px 6px;font-size:13px"></td>
     </tr>`;
@@ -996,15 +1047,17 @@ function loadGroupComp() {
   const students = DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group);
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
   let html = `<div style="overflow-x:auto"><table>
-    <thead><tr><th>姓名</th><th>学号</th><th>竞赛一<br>(0-5)</th><th>竞赛二<br>(0-5)</th><th>校级赛事<br>(0-10)</th><th>赛事总分<br>(上限10)</th></tr></thead><tbody>`;
+    <thead><tr><th style="width:40px">序号</th><th>姓名</th><th>学号</th><th>竞赛一<br>(0-5)</th><th>竞赛二<br>(0-5)</th><th>校级赛事<br>(0-10)</th><th>赛事总分<br>(上限10)</th></tr></thead><tbody>`;
+  let compSeq = 0;
   for (const s of students) {
+    compSeq++;
     s.comp = s.comp || { comp1: null, comp2: null, school: null };
     const c1 = s.comp.comp1 !== null ? s.comp.comp1 : '';
     const c2 = s.comp.comp2 !== null ? s.comp.comp2 : '';
     const c3 = s.comp.school !== null ? s.comp.school : '';
     const total = calcCompScore(s);
     html += `<tr>
-      <td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
+      <td style="color:var(--text2)">${compSeq}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td>
       <td><select id="gcomp1_${s.id}" onchange="saveGroupComp('${s.id}','comp1')" style="width:60px;padding:4px;font-size:13px">
         <option value="" ${c1===''?'selected':''}>-</option>
         ${[5].map(v=>`<option value="${v}" ${c1==v?'selected':''}>${v}</option>`).join('')}
@@ -1047,11 +1100,13 @@ function loadGroupSunny() {
   if (!group) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">请选择课程时间</div>'; return; }
   const students = DB.students.filter(s => (s.course || '') === DB.currentCourse && (s.group || '').trim() === group);
   if (students.length === 0) { container.innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">该课程时间暂无学生</div>'; return; }
-  let html = `<div style="overflow-x:auto"><table><thead><tr><th>姓名</th><th>学号</th><th>性别</th><th>分数（0-10）</th><th>备注</th></tr></thead><tbody>`;
+  let html = `<div style="overflow-x:auto"><table><thead><tr><th style="width:40px">序号</th><th>姓名</th><th>学号</th><th>性别</th><th>分数（0-10）</th><th>备注</th></tr></thead><tbody>`;
+  let sunnySeq = 0;
   for (const s of students) {
+    sunnySeq++;
     const val = s.sunny !== undefined && s.sunny !== null && s.sunny !== '' ? s.sunny : 10;
     if (s.sunny === undefined || s.sunny === null || s.sunny === '') { s.sunny = 10; }
-    html += `<tr><td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td>
+    html += `<tr><td style="color:var(--text2)">${sunnySeq}</td><td>${esc(s.name)}</td><td>${esc(s.sid)}</td><td>${s.gender}</td>
       <td><select id="gsun_${s.id}" onchange="saveGroupSunny('${s.id}')" style="width:70px;padding:6px 8px;font-size:14px">
         ${Array.from({length:11},(_,i)=>`<option value="${i}" ${val==i?'selected':''}>${i}</option>`).join('')}
       </select></td>
