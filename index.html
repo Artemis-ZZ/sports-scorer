@@ -1284,15 +1284,22 @@ function showStudentDetail() {
     <tr><td style="color:var(--text2)">课程类型</td><td>${cfg.icon} ${cfg.name}</td><td style="color:var(--text2)">课程时间</td><td colspan="3">${esc(s.group||'')}</td></tr>
     <tr><td style="color:var(--text2)">班级</td><td colspan="5">${esc(s.class)}</td></tr>
     <tr style="background:var(--bg)"><td colspan="6"><b>📅 考勤</b> — 得分：${att.score}/10 ${att.disqualified?'<span class="tag tag-danger">取消资格</span>':''}</td></tr>`;
-  if (s.attendance && s.attendance.length > 0) {
+  if (s.exempt === true) {
+    html += '<tr><td colspan="6" style="font-size:12px;color:var(--text2)">免修</td></tr>';
+  } else if (s.attendance && s.attendance.length > 0) {
     const sorted = [...s.attendance].sort((a,b) => new Date(a.date) - new Date(b.date));
     html += '<tr><td colspan="6" style="font-size:12px">';
+    let hasItems = false;
     for (const a of sorted) {
       if (a.type === '出勤' || a.type === '见习') continue;
+      hasItems = true;
       const sym = { '旷课':'○','病假':'◎','事假':'⊕','公假':'√' }[a.type] || a.type;
       html += `<span style="margin-right:8px">${a.date} ${sym}${a.type}</span>`;
     }
     html += '</td></tr>';
+    if (!hasItems) html += '<tr><td colspan="6" style="font-size:12px;color:var(--success)">全勤</td></tr>';
+  } else {
+    html += '<tr><td colspan="6" style="font-size:12px;color:var(--text2)">无考勤记录</td></tr>';
   }
   html += `<tr style="background:var(--bg)"><td colspan="6"><b>💪 身体素质</b> — 总分：${fit.total.toFixed(1)}/30</td></tr>`;
   if (s.gender === '女') {
