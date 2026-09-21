@@ -918,6 +918,30 @@ function loadGroupAttendance() {
     for (const j of jianxiList) html += `<tr><td>${esc(j.name)}</td><td>${esc(j.sid)}</td><td>${esc(j.weeks)}</td></tr>`;
     html += '</tbody></table></div>';
   }
+  // 考勤统计：列出所有非出勤记录及周次
+  const ATT_TYPES = ['旷课','病假','事假','公假','见习'];
+  const attSummary = [];
+  for (const s of students) {
+    const records = (s.attendance || []).filter(a => a.date && ATT_TYPES.indexOf(a.type) >= 0);
+    if (records.length > 0) {
+      records.sort((a,b) => new Date(a.date) - new Date(b.date));
+      const items = records.map(a => {
+        const w = weekNum(a.date);
+        const weekLabel = w ? '第' + w + '周' : '';
+        const dateLabel = a.date.slice(5).replace('-', '/');
+        return (weekLabel ? weekLabel + ' ' : '') + dateLabel + '·' + a.type;
+      }).join('　');
+      attSummary.push({ name: s.name, sid: s.sid, items });
+    }
+  }
+  if (attSummary.length > 0) {
+    html += `<div class="card" style="margin-top:12px"><h3>📋 考勤统计</h3>
+      <table><thead><tr><th>姓名</th><th>学号</th><th>考勤记录（周次·类型）</th></tr></thead><tbody>`;
+    for (const j of attSummary) {
+      html += `<tr><td>${esc(j.name)}</td><td>${esc(j.sid)}</td><td style="font-size:13px">${esc(j.items)}</td></tr>`;
+    }
+    html += '</tbody></table></div>';
+  }
   container.innerHTML = html;
 }
 function markGroupAtt(sid, date, type) {
