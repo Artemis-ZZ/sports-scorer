@@ -1413,17 +1413,29 @@ function exportExcel() {
         }
       }
       if (s.gender === '女') {
-        r[21] = f.f_50m || ''; r[22] = scoreTime(parseFloat(f.f_50m), FEMALE_50M); r[22] = r[22] !== undefined ? r[22] : '';
-        r[23] = f.f_800m ? formatTime(f.f_800m) : ''; r[24] = scoreTime(timeToSec(f.f_800m), FEMALE_800M); r[24] = r[24] !== undefined ? r[24] : '';
-        r[25] = f.f_lj || ''; r[26] = scoreCount(parseFloat(f.f_lj), FEMALE_LJ); r[26] = r[26] !== undefined ? r[26] : '';
-        r[27] = f.f_situp || ''; r[28] = scoreCount(parseFloat(f.f_situp), FEMALE_SITUPS); r[28] = r[28] !== undefined ? r[28] : '';
+        r[21] = f.f_50m || '';
+        r[23] = f.f_800m ? formatTime(f.f_800m) : '';
+        r[25] = f.f_lj || '';
+        r[27] = f.f_situp || '';
+        if (!s.exempt) {
+          r[22] = scoreTime(parseFloat(f.f_50m), FEMALE_50M); r[22] = r[22] !== undefined ? r[22] : '';
+          r[24] = scoreTime(timeToSec(f.f_800m), FEMALE_800M); r[24] = r[24] !== undefined ? r[24] : '';
+          r[26] = scoreCount(parseFloat(f.f_lj), FEMALE_LJ); r[26] = r[26] !== undefined ? r[26] : '';
+          r[28] = scoreCount(parseFloat(f.f_situp), FEMALE_SITUPS); r[28] = r[28] !== undefined ? r[28] : '';
+        }
       } else {
-        r[21] = f.f_50m || ''; r[22] = scoreTime(parseFloat(f.f_50m), MALE_50M); r[22] = r[22] !== undefined ? r[22] : '';
-        r[23] = f.f_1000m ? formatTime(f.f_1000m) : ''; r[24] = scoreTime(timeToSec(f.f_1000m), MALE_1000M); r[24] = r[24] !== undefined ? r[24] : '';
-        r[25] = f.f_lj || ''; r[26] = scoreCount(parseFloat(f.f_lj), MALE_LJ); r[26] = r[26] !== undefined ? r[26] : '';
-        r[27] = f.f_pullup || ''; r[28] = scoreCount(parseFloat(f.f_pullup), MALE_PULLUPS); r[28] = r[28] !== undefined ? r[28] : '';
+        r[21] = f.f_50m || '';
+        r[23] = f.f_1000m ? formatTime(f.f_1000m) : '';
+        r[25] = f.f_lj || '';
+        r[27] = f.f_pullup || '';
+        if (!s.exempt) {
+          r[22] = scoreTime(parseFloat(f.f_50m), MALE_50M); r[22] = r[22] !== undefined ? r[22] : '';
+          r[24] = scoreTime(timeToSec(f.f_1000m), MALE_1000M); r[24] = r[24] !== undefined ? r[24] : '';
+          r[26] = scoreCount(parseFloat(f.f_lj), MALE_LJ); r[26] = r[26] !== undefined ? r[26] : '';
+          r[28] = scoreCount(parseFloat(f.f_pullup), MALE_PULLUPS); r[28] = r[28] !== undefined ? r[28] : '';
+        }
       }
-      r[29] = t.fit.toFixed(1);
+      r[29] = s.exempt ? '' : t.fit.toFixed(1);
       // Sport — 成绩列空白，只填得分列
       r[30] = '';                             // AE: 专项一 成绩（空白）
       r[31] = t.sp1 !== undefined ? t.sp1 : '';  // AF: 专项一 得分
