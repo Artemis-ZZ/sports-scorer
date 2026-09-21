@@ -241,7 +241,14 @@ td input[type="checkbox"], th input[type="checkbox"] { width: 18px; height: 18px
   </div>
   <div class="card" id="attStudentSelector">
     <h2>🔍 查看单个学生考勤详情</h2>
-    <select id="attStudent" onchange="loadAttendance()"><option value="">-- 请选择 --</option></select>
+    <div>
+      <label>搜索（拼音首字母或学号）</label>
+      <input id="attPinyin" placeholder="如: ZJW 或 20241309" oninput="filterAttStudent()" style="font-size:14px;margin-bottom:8px">
+    </div>
+    <div class="form-row">
+      <div><label>课程时间</label><select id="attQueryGroup" onchange="filterAttStudent()"><option value="">-- 全部 --</option></select></div>
+      <div><label>学生</label><select id="attStudent" onchange="loadAttendance()"><option value="">-- 请选择 --</option></select></div>
+    </div>
   </div>
   <div id="attContent" class="hidden">
     <div class="card"><h2 id="attTitle"></h2><div class="stats-grid" id="attStats"></div></div>
@@ -283,7 +290,14 @@ td input[type="checkbox"], th input[type="checkbox"] { width: 18px; height: 18px
   </div>
   <div class="card">
     <h2>🔍 查看单个学生身体素质</h2>
-    <select id="fitStudent" onchange="loadFitness()"><option value="">-- 请选择 --</option></select>
+    <div>
+      <label>搜索（拼音首字母或学号）</label>
+      <input id="fitPinyin" placeholder="如: ZJW 或 20241309" oninput="filterFitStudent()" style="font-size:14px;margin-bottom:8px">
+    </div>
+    <div class="form-row">
+      <div><label>课程时间</label><select id="fitQueryGroup" onchange="filterFitStudent()"><option value="">-- 全部 --</option></select></div>
+      <div><label>学生</label><select id="fitStudent" onchange="loadFitness()"><option value="">-- 请选择 --</option></select></div>
+    </div>
   </div>
   <div id="fitContent" class="hidden">
     <div class="card">
@@ -433,6 +447,9 @@ function switchCourse(course) {
   if (target) target.classList.add('active');
   // Refresh views
   populateGroupSelect('studentGroup'); renderStudents(); updateCount();
+  populateGroupSelect('attQueryGroup'); filterAttStudent();
+  populateGroupSelect('fitQueryGroup'); filterFitStudent();
+  populateGroupSelect('queryGroup'); filterQueryStudents();
   updateSportLabels();
   document.querySelectorAll('#nav button.active').forEach(b => { if (b.dataset.page === 'sport') loadGroupSport(); });
 }
@@ -527,13 +544,13 @@ document.getElementById('nav').addEventListener('click', function(e) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   $('page-' + page).classList.add('active');
   if (page === 'students') { populateGroupSelect('studentGroup'); renderStudents(); }
-  if (page === 'attendance') { populateStudentSelect('attStudent'); populateGroupSelect('attGroup'); $('attGroupDate').value = new Date().toISOString().split('T')[0]; }
-  if (page === 'fitness') { populateStudentSelect('fitStudent'); populateGroupSelect('fitGroup'); }
+  if (page === 'attendance') { populateGroupSelect('attQueryGroup'); filterAttStudent(); populateGroupSelect('attGroup'); $('attGroupDate').value = new Date().toISOString().split('T')[0]; }
+  if (page === 'fitness') { populateGroupSelect('fitQueryGroup'); filterFitStudent(); populateGroupSelect('fitGroup'); }
   if (page === 'sport') { populateGroupSelect('sportGroup'); updateSportLabels(); }
   if (page === 'competition') { populateGroupSelect('compGroup'); }
   if (page === 'sunny') { populateGroupSelect('sunnyGroup'); }
-  if (page === 'query') { populateGroupSelect('queryGroup'); populateStudentSelect('detailStudent'); }
-  if (page === 'overview') { populateGroupSelect('overviewGroup'); populateStudentSelect('detailStudent'); renderOverview(); }
+  if (page === 'query') { populateGroupSelect('queryGroup'); filterQueryStudents(); }
+  if (page === 'overview') { populateGroupSelect('overviewGroup'); renderOverview(); }
 });
 
 // ========== STUDENT MANAGEMENT ==========
@@ -747,13 +764,6 @@ function renderStudents() {
 function updateCount() {
   const students = DB.currentCourse ? DB.students.filter(s => (s.course || '') === DB.currentCourse) : DB.students;
   $('studentCount').textContent = `${students.length} 名学生`;
-}
-function populateStudentSelect(elId) {
-  const sel = $(elId); const cur = sel.value;
-  const students = DB.currentCourse ? DB.students.filter(s => (s.course || '') === DB.currentCourse) : DB.students;
-  sel.innerHTML = '<option value="">-- 请选择 --</option>' +
-    students.map(s => `<option value="${s.id}">${esc(s.class)} - ${esc(s.name)} (${esc(s.sid)})</option>`).join('');
-  if (cur) sel.value = cur;
 }
 function populateGroupSelect(elId) {
   const sel = $(elId); const cur = sel.value;
@@ -1271,6 +1281,38 @@ function filterQueryStudents() {
   sel.innerHTML = '<option value="">-- 请选择 --</option>' +
     list.map(function(s) { return '<option value="' + s.id + '">' + esc(s.class) + ' - ' + esc(s.name) + ' (' + esc(s.sid) + ')</option>'; }).join('');
   $('studentDetailContent').innerHTML = '';
+}
+function filterAttStudent() {
+  var group = $('attQueryGroup').value;
+  var pinyin = ($('attPinyin').value || '').trim().toUpperCase();
+  var sel = $('attStudent');
+  var list = group ? DB.students.filter(function(s) { return (s.course || '') === DB.currentCourse && (s.group || '').trim() === group; }) : DB.students.filter(function(s) { return (s.course || '') === DB.currentCourse; });
+  if (pinyin) {
+    list = list.filter(function(s) {
+      if (getPinyinInitials(s.name).indexOf(pinyin) === 0) return true;
+      if (s.sid.indexOf(pinyin) >= 0) return true;
+      return false;
+    });
+  }
+  sel.innerHTML = '<option value="">-- 请选择 --</option>' +
+    list.map(function(s) { return '<option value="' + s.id + '">' + esc(s.class) + ' - ' + esc(s.name) + ' (' + esc(s.sid) + ')</option>'; }).join('');
+  $('attContent').classList.add('hidden');
+}
+function filterFitStudent() {
+  var group = $('fitQueryGroup').value;
+  var pinyin = ($('fitPinyin').value || '').trim().toUpperCase();
+  var sel = $('fitStudent');
+  var list = group ? DB.students.filter(function(s) { return (s.course || '') === DB.currentCourse && (s.group || '').trim() === group; }) : DB.students.filter(function(s) { return (s.course || '') === DB.currentCourse; });
+  if (pinyin) {
+    list = list.filter(function(s) {
+      if (getPinyinInitials(s.name).indexOf(pinyin) === 0) return true;
+      if (s.sid.indexOf(pinyin) >= 0) return true;
+      return false;
+    });
+  }
+  sel.innerHTML = '<option value="">-- 请选择 --</option>' +
+    list.map(function(s) { return '<option value="' + s.id + '">' + esc(s.class) + ' - ' + esc(s.name) + ' (' + esc(s.sid) + ')</option>'; }).join('');
+  $('fitContent').classList.add('hidden');
 }
 function showStudentDetail() {
   const sid = $('detailStudent').value; const container = $('studentDetailContent');
