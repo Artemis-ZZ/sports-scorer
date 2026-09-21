@@ -829,25 +829,50 @@ function calcAttendance(s) {
   const nonOfficial = kuang + bing + shi;
   return { score: Math.max(0, score), kuang, bing, shi, gong, jianxi, nonOfficial, disqualified: nonOfficial >= 5 };
 }
+function weekNum(dateStr) {
+  if (!DB.startDate || !dateStr) return null;
+  var semStart = new Date(DB.startDate + 'T00:00:00');
+  var ad = new Date(dateStr + 'T00:00:00');
+  var diff = Math.floor((ad - semStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  if (diff < 1 || diff > 16) return null;
+  return diff;
+}
 function renderAttStats(s) {
-  const a = calcAttendance(s);
-  $('attStats').innerHTML = `
-    <div class="stat-card"><div class="num" style="color:${a.disqualified?'var(--danger)':'var(--primary)'}">${a.score}</div><div class="label">考勤得分/10</div></div>
-    <div class="stat-card"><div class="num">${a.kuang}</div><div class="label">旷课</div></div>
-    <div class="stat-card"><div class="num">${a.bing}</div><div class="label">病假</div></div>
-    <div class="stat-card"><div class="num">${a.shi}</div><div class="label">事假</div></div>
-    <div class="stat-card"><div class="num">${a.gong}</div><div class="label">公假</div></div>
-    <div class="stat-card"><div class="num">${a.jianxi}</div><div class="label">见习</div></div>
-    ${a.disqualified?'<div class="stat-card"><div class="num" style="color:var(--danger)">⚠️</div><div class="label" style="color:var(--danger)">取消考试资格</div></div>':''}`;
+  var a = calcAttendance(s);
+  function weeksOf(type) {
+    var weeks = [];
+    (s.attendance || []).forEach(function(x) {
+      if (x.type === type && x.date) {
+        var w = weekNum(x.date);
+        if (w) weeks.push(w);
+      }
+    });
+    weeks.sort(function(a, b) { return a - b; });
+    return weeks.length > 0 ? weeks.map(function(w) { return '第' + w + '周'; }).join('、') : '';
+  }
+  function card(num, label, extra) {
+    return '<div class="stat-card"><div class="num">' + num + '</div><div class="label">' + label + (extra ? '<br><span style="font-size:10px;color:var(--text2)">' + extra + '</span>' : '') + '</div></div>';
+  }
+  $('attStats').innerHTML =
+    '<div class="stat-card"><div class="num" style="color:' + (a.disqualified ? 'var(--danger)' : 'var(--primary)') + '">' + a.score + '</div><div class="label">考勤得分/10</div></div>' +
+    card(a.kuang, '旷课', weeksOf('旷课')) +
+    card(a.bing, '病假', weeksOf('病假')) +
+    card(a.shi, '事假', weeksOf('事假')) +
+    card(a.gong, '公假', weeksOf('公假')) +
+    card(a.jianxi, '见习', weeksOf('见习')) +
+    (a.disqualified ? '<div class="stat-card"><div class="num" style="color:var(--danger)">⚠️</div><div class="label" style="color:var(--danger)">取消考试资格</div></div>' : '');
 }
 function renderAttLog(s) {
   const att = s.attendance || [];
   if (att.length === 0) { $('attLog').innerHTML = '<div style="color:var(--text2);padding:12px;text-align:center">暂无记录</div>'; return; }
-  $('attLog').innerHTML = att.map((a,i) => `
-    <div class="row">
-      <span><span class="tag ${a.type==='旷课'?'tag-danger':a.type==='见习'?'tag-info':'tag-warn'}">${a.type}</span> ${a.date} ${a.note?esc(a.note):''}</span>
-      <span class="remove-btn" onclick="removeAttendance('${s.id}',${i})">✕</span>
-    </div>`).join('');
+  $('attLog').innerHTML = att.map(function(a, i) {
+    var w = weekNum(a.date);
+    var weekStr = w ? '第' + w + '周 ' : '';
+    return '<div class="row">' +
+      '<span><span class="tag ' + (a.type==='旷课'?'tag-danger':a.type==='见习'?'tag-info':'tag-warn') + '">' + a.type + '</span> ' + weekStr + a.date + ' ' + (a.note?esc(a.note):'') + '</span>' +
+      '<span class="remove-btn" onclick="removeAttendance(\'' + s.id + '\',' + i + ')">✕</span>' +
+    '</div>';
+  }).join('');
 }
 function loadGroupAttendance() {
   const group = $('attGroup').value, date = $('attGroupDate').value;
